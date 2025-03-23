@@ -1,0 +1,72 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.colors import ListedColormap
+import calendar
+
+# read the dataset
+df = pd.read_csv("ad_viz_tile_data.csv", parse_dates=["Date"])
+
+# filter monitoring site and years
+site_id = "06-037-1103"
+df_site = df[df["Site ID"] == site_id].copy()
+df_site["Year"] = df_site["Date"].dt.year
+df_site["Month"] = df_site["Date"].dt.month
+
+# define aqi degrees's colors
+aqi_bins = [0, 50, 100, 150, 200, 300, 1000]
+aqi_labels = ["Good", "Moderate", "Unhealthy for SG", "Unhealthy", "Very Unhealthy", "Hazardous"]
+aqi_colors = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"]
+cmap = ListedColormap(aqi_colors)
+
+# use year and month to generate data
+pivot_df = df_site.pivot_table(
+    values="AQI Value",
+    index="Year",
+    columns="Month",
+    aggfunc="max",
+    fill_value=0
+)
+pivot_df = pivot_df.reindex(columns=range(1, 13))
+plt.figure(figsize=(15, 8))
+
+# draw the tile map
+ax = sns.heatmap(
+    pivot_df,
+    cmap=cmap,
+    vmin=0,
+    vmax=300,
+    linewidths=0.5,
+    linecolor="white",
+    cbar_kws={
+        "label": "AQI Value",
+        "ticks": [25, 75, 125, 175, 250, 300],
+        "boundaries": aqi_bins
+    }
+)
+
+# define the axises
+ax.set_xlabel("Month", fontsize=12)
+ax.set_ylabel("Year", fontsize=12)
+ax.set_xticks(range(12))
+ax.set_xticklabels([calendar.month_abbr[i] for i in range(1, 13)])
+ax.set_title(
+    f"Multiyear AQI Tile Plot ({site_id}: Los Angeles-North Main Street)\n"
+    "Color Scale: EPA AQI Categories",
+    fontsize=14,
+    pad=20
+)
+
+# add AQI classification legend
+for i, (label, color) in enumerate(zip(aqi_labels, aqi_colors)):
+    plt.plot([], [], color=color, label=f"{label} ({aqi_bins[i]}-{aqi_bins[i+1]})")
+
+plt.legend(
+    bbox_to_anchor=(1.05, 1),
+    loc="upper left",
+    frameon=False,
+    title="AQI Categories"
+)
+
+plt.tight_layout()
+plt.show()
